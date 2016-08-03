@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container">
+        <div class="form-group has-feedback"
+             style="margin-top: 20px;">
+            <div class="input-group">
+                <span class="input-group-addon">Search</span>
+                <input type="text" class="form-control" nam="q" id="q">
+            </div>
+        </div>
+
+        {% for article in object_list %}
+            <div class="media">
+                {% if article.image %}
+                    <div class="media-left media-middle">
+                        <a href="{{ article.url }}">
+                            <img class="media-object" src="{{ article.image }}" alt="...">
+                        </a>
+                    </div>
+                {% endif %}
+                <div class="media-body">
+                    <h4 class="media-heading">
+                        <a href="{{ article.url }}">{{ article.title }}</a>
+                    </h4>
+                    {{ article.desc|safe|truncatechars:500 }}
+                </div>
+            </div>
+        {% endfor %}
+
+
+            <nav class="text-center">
+                <ul class="pagination">
+                    {% if object_list.has_previous %}
+                        <li>
+                            <a href="?page={{ object_list.previous_page_number }}">&laquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="disabled"><a href="#">&laquo;</a></li>
+                    {% endif %}
+
+                    {% for num in object_list.paginator.page_range %}
+                        {% ifequal num object_list.number %}
+                            <li class="active"><a href="#">{{ num }}<span
+                                    class="sr-only">(current)</span></a></li>
+                        {% else %}
+                            <li><a href="?page={{ num }}">{{ num }}</a></li>
+                        {% endifequal %}
+                    {% endfor %}
+
+                    {% if object_list.has_next %}
+                        <li>
+                            <a href="?page={{ object_list.next_page_number }}">&raquo;</a>
+                        </li>
+                    {% else %}
+                        <li class="disabled"><a href="#">&raquo;</a></li>
+                    {% endif %}
+                    <ul>
+            </nav>
+
+
+        <nav>
+            <ul class="pagination">
+                <li>
+                    <a href="#" aria-label="Previous">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+                <li><a href="#">1</a></li>
+                <li><a href="#">2</a></li>
+                <li><a href="#">3</a></li>
+                <li><a href="#">4</a></li>
+                <li><a href="#">5</a></li>
+                <li>
+                    <a href="#" aria-label="Next">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
+    </div>
+{% endblock %}

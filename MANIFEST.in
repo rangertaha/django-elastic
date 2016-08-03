@@ -1,0 +1,8 @@
+recursive-include docs *
+recursive-include djanes/templates *
+
+include LICENSE
+include README
+include *.txt
+
+prune example/
