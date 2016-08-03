@@ -7,7 +7,6 @@ from setuptools import find_packages, setup
 
 with open('README.md') as f:
     long_desc = f.read()
-    desc = ''
 
 with open('requirements.txt') as r:
     requirements = r.readlines()
@@ -16,7 +15,7 @@ with open('requirements.txt') as r:
 setup(
     name='django-elastic',
     version='0.0.1',
-    description=desc,
+    description='Django models mapping and flexible indexer for ElasticSearch.',
     long_description=long_desc,
     author='Rangertaha',
     author_email='rangertaha@gmail.com',
