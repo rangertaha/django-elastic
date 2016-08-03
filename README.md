@@ -81,4 +81,15 @@ TODO...
 
 
 
+## Management Commands
+
+Create mapping in elasticsearch
+
+    ./manage.py create_elastic_mapping
+
+
+Index models in elasticsearch
+
+    ./manage.py create_elastic_index
+
 
