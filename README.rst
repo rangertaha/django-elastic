@@ -1,6 +1,5 @@
-# UNDER DEVELOPEMNT
-
-## django-elastic (delastic)
+django-elastic
+==============
 
 * Simple way to index/delete/update django models
 * Queries Elasticsearch only, not hitting the Django database
@@ -20,17 +19,24 @@ TODO:
 
 
 
-## Requirements
+Requirements
+------------
 
 * elasticsearch-dsl
 
 
-## Installation
+Installation
+------------
+
+.. code-block:: bash
 
     pip install django-elastic
 
 
-## Settings
+Settings
+--------
+
+.. code-block:: python
 
     INSTALLED_APPS = (
         ...
@@ -39,6 +45,9 @@ TODO:
 
 Optional elasticsearch settings, Defaults to the following
 
+
+.. code-block:: python
+
     DJANGO_ELASTIC = {
         'hosts': ['localhost'],
         'port': 9200,
@@ -46,7 +55,8 @@ Optional elasticsearch settings, Defaults to the following
     }
 
 
-## Model
+Model
+-----
 
 An example model
 
@@ -64,9 +74,13 @@ An example model
             return self.title
 
 
-## Indexer
+Indexer
+-------
+
 
 The simplest example of an indexer for the model.
+
+.. code-block:: python
 
     from delastic.indexer import ModelIndex
 
@@ -74,21 +88,28 @@ The simplest example of an indexer for the model.
         class Meta:
             model = Article
 
+View
+----
 
-## View
 
 TODO...
 
 
 
-## Management Commands
+Management Commands
+-------------------
 
 Create mapping in elasticsearch
+
+.. code-block:: bash
 
     ./manage.py create_elastic_mapping
 
 
 Index models in elasticsearch
+
+
+.. code-block:: bash
 
     ./manage.py create_elastic_index
 
