@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to django-elastic's documentation!
-==========================================
+django-elastic
+==============
 
 Contents:
 
@@ -12,13 +12,12 @@ Contents:
    :maxdepth: 2
 
 
+   tutorial
+   indexers
+   views
 
-   development
-   testing
-   deployment
-   research
-   authors
-   search/index
+
+
 
 
 
