@@ -11,6 +11,22 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+
+   
+   development
+   testing
+   deployment
+   research
+   authors
+   search/index
+
+
+
+
+
+
+
+
 Indices and tables
 ==================
 
