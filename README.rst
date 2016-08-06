@@ -108,6 +108,8 @@ Or for more control
             exclude = ['image']
 
         # Clean/Modify the 'title' field before indexing in elasticsearch
+        # functions that start with 'clean_' followed by the field name of
+        # a the model.
         def clean_title(self):
             return getattr(self.instance, 'title')
 
