@@ -69,7 +69,6 @@ An example model
         updated = models.DateTimeField(blank=True, null=True)
         image = models.URLField(max_length=500, blank=True, null=True)
         url = models.URLField(max_length=500, blank=True, null=True)
-
         active = models.BooleanField(default=True)
 
         def __unicode__(self):
@@ -89,6 +88,33 @@ The simplest example of an indexer for the model.
     class ArticleIndex(ModelIndex):
         class Meta:
             model = Article
+
+Or
+
+.. code-block:: python
+
+    from delastic.indexer import ModelIndex
+
+    class ArticleIndex(ModelIndex):
+        title = String(multi=True, index='analyzed', analyzer='keyword')
+        desc = String()
+
+        class Meta:
+            model = Article
+            client = Elasticsearch()
+            index = 'news'
+            doc_type = 'article'
+            fields = ['title', 'desc', 'created']
+            exclude = ['image']
+
+        # Clean/Modify the 'title' field before indexing in elasticsearch
+        def clean_title(self):
+            return getattr(self.instance, 'title')
+
+        # If this returns False, it does not index the instance
+        def indexable(self):
+            return self.instance.active
+
 
 View
 ----
