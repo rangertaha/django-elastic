@@ -89,7 +89,7 @@ The simplest example of an indexer for the model.
         class Meta:
             model = Article
 
-Or
+Or for more control
 
 .. code-block:: python
 
