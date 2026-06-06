@@ -17,5 +17,5 @@ class NewsSearch(ListView):
     form = 'SearchForm'
 
     def get_queryset(self):
-        print ModelIndex.registry
+        print(ModelIndex.registry)
         return Article.objects.all()

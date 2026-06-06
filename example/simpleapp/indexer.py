@@ -2,9 +2,9 @@
 from elasticsearch import Elasticsearch
 from django.dispatch import receiver
 from delastic.indexer import ModelIndex
-from elasticsearch_dsl import (
-    DocType, String, Integer, Date, Boolean, GeoShape, Long, Nested,
-    InnerObjectWrapper)
+from elasticsearch.dsl import (
+    Document, Text, Keyword, Integer, Date, Boolean, GeoShape, Long, Nested,
+    InnerDoc)
 
 from delastic.signals import pre_index
 
@@ -12,8 +12,8 @@ from .models import Article
 
 
 class ArticleIndex(ModelIndex):
-    title = String(multi=True, index='analyzed', analyzer='keyword')
-    desc = String()
+    title = Text(multi=True, analyzer='keyword')
+    desc = Text()
 
     class Meta:
         model = Article
@@ -34,8 +34,7 @@ class ArticleIndex(ModelIndex):
 def pre_index_handler(sender, instance, **kwargs):
     """Signal intercept before indexing"""
 
-    #print 'Django Instance: ', instance
+    #print('Django Instance: ', instance)
     import json
-    #print 'Mapping: ', json.dumps(sender._meta.mapping.to_dict(), indent=4)
+    #print('Mapping: ', json.dumps(sender._meta.mapping.to_dict(), indent=4))
     pass
-

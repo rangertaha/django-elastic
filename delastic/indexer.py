@@ -3,22 +3,30 @@
 
 """
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 from elasticsearch import Elasticsearch
-from elasticsearch_dsl import String, Date, Nested, Boolean, \
-    analyzer, InnerObjectWrapper, Mapping, Field, Integer, Long, Search
+from elasticsearch.dsl import (
+    Text, Date, Nested, Boolean, analyzer, InnerDoc, Mapping, Field,
+    Integer, Long, Search,
+)
 from django.db.models import CharField, TextField, DateField, DateTimeField
 
 from .signals import post_index, pre_index, post_delete, pre_delete
-from .settings import DJANGO_ELASTIC
+from .settings import DJANGO_ELASTIC, elastic_hosts
 
 INDEX = DJANGO_ELASTIC.get('index')
 HOSTS = DJANGO_ELASTIC.get('hosts')
 PORT = DJANGO_ELASTIC.get('port')
 
+
+def default_client():
+    """Builds a default Elasticsearch client from the project settings."""
+    return Elasticsearch(hosts=elastic_hosts())
+
+
 DSL_TO_DJANGO_FIELDS = {
-    String: [CharField, TextField],
+    Text: [CharField, TextField],
     Date: [DateField, DateTimeField],
     Integer: [],
     Long: [],
@@ -29,7 +37,7 @@ DSL_TO_DJANGO_FIELDS = {
 class IndexMeta(type):
     def __new__(cls, name, bases, attrs):
         attrs['_meta'] = IndexOptions(name, bases, attrs)
-        return super(IndexMeta, cls).__new__(cls, name, bases, attrs)
+        return super().__new__(cls, name, bases, attrs)
 
     def __init__(cls, name, bases, dct):
         if not hasattr(cls, 'registry'):
@@ -52,7 +60,7 @@ class IndexMeta(type):
 
             cls.fields = cls._mapping_fields()
 
-        super(IndexMeta, cls).__init__(name, bases, dct)
+        super().__init__(name, bases, dct)
 
     def _update_mapping_from_model(cls, model):
         mapping = cls.registry.get(cls._meta.doc_type, None)
@@ -76,20 +84,20 @@ class IndexMeta(type):
         mapping = cls.registry.get(doc_type, None)
         if isinstance(mapping, Mapping):
             return mapping, False
-        return Mapping(doc_type), True
+        return Mapping(), True
 
     def _translate_field(cls, field):
-        for key, values in DSL_TO_DJANGO_FIELDS.iteritems():
+        for key, values in DSL_TO_DJANGO_FIELDS.items():
             if type(field) in values:
                 return field.name, key
         return None, None
 
     def _mapping_fields(cls):
-        mapping = cls.registry.get(cls._meta.doc_type, {})
+        mapping = cls.registry.get(cls._meta.doc_type, None)
+        if not isinstance(mapping, Mapping):
+            return {}
         map_dict = mapping.to_dict()
-        properties = map_dict.get(
-            cls._meta.doc_type, {}).get('properties', {})
-        return properties
+        return map_dict.get('properties', {})
 
     def indexer_for_instance(cls, instance):
         indexer = cls.registry.get(instance.__class__, None)
@@ -115,10 +123,12 @@ class IndexOptions(object):
         self.exclude = getattr(meta, 'exclude', [])
 
         # Client Elasticsearch instance
-        self.es = getattr(meta, 'client', Elasticsearch(hosts=HOSTS))
+        self.es = getattr(meta, 'client', None) or default_client()
         self.index = getattr(meta, 'index', INDEX)
 
-        # Get doc_type name, defaults to lower case class name
+        # Get doc_type name, defaults to lower case class name. Elasticsearch
+        # no longer uses mapping types, so this is kept only as an internal
+        # registry key for the indexer/mapping.
         self.doc_type = getattr(
             meta, 'doc_type', re.sub(r'(.)([A-Z])', r'\1_\2', name).lower())
 
@@ -139,7 +149,6 @@ class BaseModelIndex(object):
                 attrvalue = clean_func()
                 if self._valid(attrvalue, field):
                     self.record[field] = attrvalue
-                    #print 'Cleaned: ', field, ': ', attrvalue
                 else:
                     # raise error, function is not return correct value
                     pass
@@ -160,7 +169,7 @@ class BaseModelIndex(object):
         return self.instance.pk
 
     def timestamp(self):
-        return datetime.now()
+        return datetime.now(timezone.utc)
 
     def _valid(self, attrname, field):
         # Validate the field via mapping
@@ -173,9 +182,8 @@ class BaseModelIndex(object):
         body['timestamp'] = self.timestamp()
         self._meta.es.index(
             index=self._meta.index,
-            doc_type=self._meta.doc_type,
             id=self.clean_id(),
-            body=body,
+            document=body,
         )
 
         post_index.send(sender=self, instance=self.instance)
@@ -186,25 +194,20 @@ class BaseModelIndex(object):
         try:
             self._meta.es.delete(
                 index=self._meta.index,
-                doc_type=self._meta.doc_type,
                 id=self.clean_id(),
             )
-        except:
+        except Exception:
             pass
 
         post_delete.send(sender=self, instance=self.instance)
 
     @classmethod
-    def search(self, es=None, index=None):
+    def search(cls, es=None, index=None):
         return Search(
-            using=es or self._meta.es,
-            index=index or self._meta.index,
-            doc_type=self._meta.doc_type,
+            using=es or cls._meta.es,
+            index=index or cls._meta.index,
         )
 
 
-class ModelIndex(BaseModelIndex, object):
-    __metaclass__ = IndexMeta
-
-
-
+class ModelIndex(BaseModelIndex, metaclass=IndexMeta):
+    pass

@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
-from django.conf.urls import url
 """
 
 """
+from django.urls import path
+
 from .views import NewsSearch
 
 
 urlpatterns = [
-    url(r'^$', NewsSearch.as_view()),
+    path('', NewsSearch.as_view()),
 ]

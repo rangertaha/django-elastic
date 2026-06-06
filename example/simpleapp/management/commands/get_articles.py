@@ -36,7 +36,7 @@ class Command(BaseCommand):
                 if not desc:
                     desc = getattr(entry, 'summary', None)
 
-                description = BeautifulSoup(desc).get_text()
+                description = BeautifulSoup(desc or '', 'html.parser').get_text()
                 item, created = Article.objects.get_or_create(
                     title=title, url=url, desc=desc)
 
@@ -48,4 +48,4 @@ class Command(BaseCommand):
                 if udate:
                     item.updated = tparser.parse(udate, ignoretz=True)
                 item.save()
-                print item.title
+                print(item.title)

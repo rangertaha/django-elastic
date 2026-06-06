@@ -1,3 +1,2 @@
-Django>=1.9.7,<2.0.0
-elasticsearch>=2.0.0,<3.0.0
-elasticsearch-dsl>=2.0.0,<3.0.0
+Django>=4.2,<6.0
+elasticsearch>=8.18,<10.0

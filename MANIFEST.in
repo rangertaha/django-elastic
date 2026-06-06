@@ -1,8 +1,13 @@
-recursive-include docs *
-recursive-include djanes/templates *
+recursive-include docs/source *
+recursive-include delastic/templates *
 
 include LICENSE
-include README
+include README.rst
 include *.txt
+include pyproject.toml
+include docs/Makefile docs/make.bat
 
-prune example/
+prune example
+prune docs/build
+global-exclude *.py[cod]
+global-exclude __pycache__

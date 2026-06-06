@@ -1,4 +1,2 @@
 # -*- coding:utf-8 -*-
-default_app_config = 'delastic.apps.ElasticConfig'
-
-from tasks import *
+from .tasks import *  # noqa: F401,F403
