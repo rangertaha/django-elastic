@@ -1,8 +1,6 @@
-# -*- coding:utf-8 -*-
-"""
+"""Signal receivers that keep Elasticsearch in sync with model saves."""
 
-"""
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from .indexer import ModelIndex
@@ -16,7 +14,7 @@ def es_index_instance(sender, instance, created, **kwargs):
     """
     indexer = ModelIndex.indexer_for_instance(instance)
     if indexer is not None:
-        indexable_func = getattr(indexer, 'indexable', None)
+        indexable_func = getattr(indexer, "indexable", None)
         if callable(indexable_func):
             if indexable_func():
                 indexer.save()

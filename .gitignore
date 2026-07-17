@@ -46,6 +46,11 @@ nosetests.xml
 coverage.xml
 *,cover
 .hypothesis/
+.pytest_cache/
+
+# Linters / type checkers
+.ruff_cache/
+.mypy_cache/
 
 # Translations
 *.mo

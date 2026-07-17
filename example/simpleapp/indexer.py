@@ -1,30 +1,26 @@
-# -*- coding: utf-8 -*-
-from elasticsearch import Elasticsearch
 from django.dispatch import receiver
-from delastic.indexer import ModelIndex
-from elasticsearch.dsl import (
-    Document, Text, Keyword, Integer, Date, Boolean, GeoShape, Long, Nested,
-    InnerDoc)
+from elasticsearch.dsl import Text
 
+from delastic.indexer import ModelIndex
 from delastic.signals import pre_index
 
 from .models import Article
 
 
 class ArticleIndex(ModelIndex):
-    title = Text(multi=True, analyzer='keyword')
+    title = Text(multi=True, analyzer="keyword")
     desc = Text()
 
     class Meta:
         model = Article
-        #client = Elasticsearch()
-        #index = 'news'
-        #doc_type = 'article'
-        fields = ['title', 'desc', 'created']
-        exclude = ['image']
+        # client = Elasticsearch()
+        # index = 'news'
+        # doc_type = 'article'
+        fields = ["title", "desc", "created"]
+        exclude = ["image"]
 
     def clean_title(self):
-        return getattr(self.instance, 'title')
+        return self.instance.title
 
     def indexable(self):
         return self.instance.active
@@ -33,8 +29,4 @@ class ArticleIndex(ModelIndex):
 @receiver(pre_index)
 def pre_index_handler(sender, instance, **kwargs):
     """Signal intercept before indexing"""
-
-    #print('Django Instance: ', instance)
-    import json
-    #print('Mapping: ', json.dumps(sender._meta.mapping.to_dict(), indent=4))
-    pass
+    # print('Django Instance: ', instance)

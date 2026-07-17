@@ -1,7 +1,5 @@
-# -*- coding:utf-8 -*-
-"""
+"""Signals sent around indexing and deletion of documents."""
 
-"""
 from django.dispatch import Signal
 
 # Signal arguments (formerly declared via ``providing_args``, removed in

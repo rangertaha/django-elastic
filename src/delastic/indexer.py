@@ -1,23 +1,25 @@
-# -*- coding:utf-8 -*-
-"""
+"""Map Django models to Elasticsearch documents and index them."""
 
-"""
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
+from django.db.models import CharField, DateField, DateTimeField, TextField
 from elasticsearch import Elasticsearch
 from elasticsearch.dsl import (
-    Text, Date, Nested, Boolean, analyzer, InnerDoc, Mapping, Field,
-    Integer, Long, Search,
+    Boolean,
+    Date,
+    Integer,
+    Long,
+    Mapping,
+    Search,
+    Text,
 )
-from django.db.models import CharField, TextField, DateField, DateTimeField
 
-from .signals import post_index, pre_index, post_delete, pre_delete
 from .settings import DJANGO_ELASTIC, elastic_hosts
+from .signals import post_delete, post_index, pre_delete, pre_index
 
-INDEX = DJANGO_ELASTIC.get('index')
-HOSTS = DJANGO_ELASTIC.get('hosts')
-PORT = DJANGO_ELASTIC.get('port')
+INDEX = DJANGO_ELASTIC.get("index")
 
 
 def default_client():
@@ -35,12 +37,19 @@ DSL_TO_DJANGO_FIELDS = {
 
 
 class IndexMeta(type):
+    # Attributes the metaclass attaches to every indexer class it creates.
+    # ``registry`` maps models and doc_type names to indexer classes and
+    # ``Mapping`` objects respectively.
+    registry: dict[Any, Any]
+    _meta: "IndexOptions"
+    fields: dict[str, Any]
+
     def __new__(cls, name, bases, attrs):
-        attrs['_meta'] = IndexOptions(name, bases, attrs)
+        attrs["_meta"] = IndexOptions(name, bases, attrs)
         return super().__new__(cls, name, bases, attrs)
 
     def __init__(cls, name, bases, dct):
-        if not hasattr(cls, 'registry'):
+        if not hasattr(cls, "registry"):
             cls.registry = {}
         else:
             # Add cls to the registry
@@ -75,7 +84,7 @@ class IndexMeta(type):
         fields = cls._mapping_fields().keys()
         for field in fields:
             cls_field = getattr(cls, field, None)
-            if cls_field:
+            if cls_field and mapping is not None:
                 mapping.field(field, cls_field)
         cls.registry[cls._meta.doc_type] = mapping
 
@@ -97,7 +106,7 @@ class IndexMeta(type):
         if not isinstance(mapping, Mapping):
             return {}
         map_dict = mapping.to_dict()
-        return map_dict.get('properties', {})
+        return map_dict.get("properties", {})
 
     def indexer_for_instance(cls, instance):
         indexer = cls.registry.get(instance.__class__, None)
@@ -114,26 +123,32 @@ class IndexMeta(type):
             mapping.save(cls._meta.index, using=cls._meta.es)
 
 
-class IndexOptions(object):
+class IndexOptions:
     def __init__(self, name, bases, attrs):
-        meta = attrs.pop('Meta', None)
+        meta = attrs.pop("Meta", None)
 
-        self.model = getattr(meta, 'model', None)
-        self.fields = getattr(meta, 'fields', [])
-        self.exclude = getattr(meta, 'exclude', [])
+        self.model = getattr(meta, "model", None)
+        self.fields = getattr(meta, "fields", [])
+        self.exclude = getattr(meta, "exclude", [])
 
         # Client Elasticsearch instance
-        self.es = getattr(meta, 'client', None) or default_client()
-        self.index = getattr(meta, 'index', INDEX)
+        self.es = getattr(meta, "client", None) or default_client()
+        self.index = getattr(meta, "index", INDEX)
 
         # Get doc_type name, defaults to lower case class name. Elasticsearch
         # no longer uses mapping types, so this is kept only as an internal
         # registry key for the indexer/mapping.
         self.doc_type = getattr(
-            meta, 'doc_type', re.sub(r'(.)([A-Z])', r'\1_\2', name).lower())
+            meta, "doc_type", re.sub(r"(.)([A-Z])", r"\1_\2", name).lower()
+        )
 
 
-class BaseModelIndex(object):
+class BaseModelIndex:
+    # Populated by ``IndexMeta`` when the concrete indexer class is created.
+    _meta: ClassVar["IndexOptions"]
+    fields: ClassVar[dict[str, Any]]
+    registry: ClassVar[dict[Any, Any]]
+
     def __init__(self, instance=None):
         self.record = {}
         self.instance = instance
@@ -143,7 +158,7 @@ class BaseModelIndex(object):
     def _clean(self):
         fields = self.fields.keys()
         for field in fields:
-            attrname = 'clean_{0}'.format(field)
+            attrname = f"clean_{field}"
             clean_func = getattr(self, attrname, None)
             if callable(clean_func):
                 attrvalue = clean_func()
@@ -163,13 +178,13 @@ class BaseModelIndex(object):
     def clean_id(self):
         if self.instance:
             from django.contrib.contenttypes.models import ContentType
-            self.content_type = ContentType.objects.get_for_model(
-                self.instance)
+
+            self.content_type = ContentType.objects.get_for_model(self.instance)
             self.django_id = str(self.instance.pk)
         return self.instance.pk
 
     def timestamp(self):
-        return datetime.now(timezone.utc)
+        return datetime.now(UTC)
 
     def _valid(self, attrname, field):
         # Validate the field via mapping
@@ -179,7 +194,7 @@ class BaseModelIndex(object):
         pre_index.send(sender=self, instance=self.instance)
 
         body = self.record
-        body['timestamp'] = self.timestamp()
+        body["timestamp"] = self.timestamp()
         self._meta.es.index(
             index=self._meta.index,
             id=self.clean_id(),

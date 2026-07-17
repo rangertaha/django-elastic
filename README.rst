@@ -1,28 +1,35 @@
 django-elastic
 ==============
 
-* Simple way to index/delete/update django models
-* Queries Elasticsearch only, not hitting the Django database
-* Define the mapping with elasticsearch-dsl, defaults to basic field types.
-* Override field values.
-* Define if a model instance should be index or not
+.. image:: https://github.com/rangertaha/django-elastic/actions/workflows/ci.yml/badge.svg
+    :target: https://github.com/rangertaha/django-elastic/actions/workflows/ci.yml
+    :alt: CI status
 
+.. image:: https://img.shields.io/pypi/v/django-elastic.svg
+    :target: https://pypi.org/project/django-elastic/
+    :alt: PyPI version
 
-TODO:
+.. image:: https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-blue.svg
+    :target: https://pypi.org/project/django-elastic/
+    :alt: Supported Python versions
 
-* Search view:
-    * Elasticsearch based pagination
-    * Elasticsearch-dsl queries
-    * Adds search filters and possible values in the template context
+.. image:: https://img.shields.io/badge/license-MIT-blue.svg
+    :target: https://github.com/rangertaha/django-elastic/blob/master/LICENSE
+    :alt: MIT License
 
-* Support multiple models per doc_type
+Django model mapping and a flexible indexer for Elasticsearch. Declare an
+indexer per model and django-elastic keeps the Elasticsearch index in sync
+automatically on every save and delete.
 
+* Simple way to index/delete/update Django models
+* Queries Elasticsearch only, without hitting the Django database
+* Builds the mapping from the model's fields by default; override any field
+  with ``elasticsearch.dsl`` field types
+* Clean/override field values before indexing (``clean_<field>`` methods)
+* Decide per instance whether it should be indexed (``indexable()``)
 
-
-Requirements
-------------
-
-* elasticsearch-dsl
+Requires Python 3.12+, Django 5.2, and the ``elasticsearch`` 9.x client
+(the DSL is bundled as ``elasticsearch.dsl``).
 
 
 Installation
@@ -33,32 +40,30 @@ Installation
     pip install django-elastic
 
 
-Settings
---------
+Quickstart
+----------
+
+Add ``delastic`` to your ``INSTALLED_APPS``:
 
 .. code-block:: python
 
     INSTALLED_APPS = (
-        ...
+        # ...
         'delastic',
     )
 
-Optional elasticsearch settings, Defaults to the following
-
+Optionally configure the Elasticsearch connection (the defaults are shown):
 
 .. code-block:: python
 
     DJANGO_ELASTIC = {
         'hosts': ['localhost'],
         'port': 9200,
+        'scheme': 'http',
         'index': 'django',
     }
 
-
-Model
------
-
-An example model
+Given a model:
 
 .. code-block:: python
 
@@ -71,15 +76,10 @@ An example model
         url = models.URLField(max_length=500, blank=True, null=True)
         active = models.BooleanField(default=True)
 
-        def __unicode__(self):
-            return self.title
+        def __str__(self):
+            return self.title or ''
 
-
-Indexer
--------
-
-
-The simplest example of an indexer for the model.
+the simplest indexer is:
 
 .. code-block:: python
 
@@ -89,58 +89,123 @@ The simplest example of an indexer for the model.
         class Meta:
             model = Article
 
-Or for more control
+From then on, saving or deleting an ``Article`` updates Elasticsearch
+automatically via ``post_save``/``post_delete`` signal receivers.
+
+
+Indexer options
+---------------
+
+For more control:
 
 .. code-block:: python
+
+    from elasticsearch import Elasticsearch
+    from elasticsearch.dsl import Text
 
     from delastic.indexer import ModelIndex
 
     class ArticleIndex(ModelIndex):
-        title = String(multi=True, index='analyzed', analyzer='keyword')
-        desc = String()
+        title = Text(multi=True, analyzer='keyword')
+        desc = Text()
 
         class Meta:
             model = Article
-            client = Elasticsearch()
+            client = Elasticsearch('http://localhost:9200')
             index = 'news'
-            doc_type = 'article'
             fields = ['title', 'desc', 'created']
             exclude = ['image']
 
-        # Clean/Modify the 'title' field before indexing in elasticsearch
-        # functions that start with 'clean_' followed by the field name of
-        # a the model.
+        # Clean/modify the 'title' field before indexing. Methods named
+        # 'clean_<field>' override the model attribute of the same name.
         def clean_title(self):
-            return getattr(self.instance, 'title')
+            return self.instance.title
 
-        # If this returns False, it does not index the instance
+        # If this returns False, the instance is not indexed (and any
+        # existing document for it is removed from the index).
         def indexable(self):
             return self.instance.active
 
+Search through the indexer with an ``elasticsearch.dsl`` ``Search`` object:
 
-View
-----
+.. code-block:: python
 
-
-TODO...
-
+    search = ArticleIndex.search().query('match', title='django')
 
 
-Management Commands
+Management commands
 -------------------
 
-Create mapping in elasticsearch
-
-.. code-block:: bash
-
-    ./manage.py create_elastic_mapping
-
-
-Index models in elasticsearch
-
+Index all registered models in Elasticsearch:
 
 .. code-block:: bash
 
     ./manage.py create_elastic_index
 
+Create the mapping in Elasticsearch:
 
+.. code-block:: bash
+
+    ./manage.py create_elastic_mapping
+
+.. note::
+    ``create_elastic_mapping`` is currently a documented no-op stub; the
+    mapping is built lazily by the indexers. See the roadmap below.
+
+
+Signals
+-------
+
+``delastic.signals`` exposes ``pre_index``, ``post_index``, ``pre_delete``,
+and ``post_delete`` so you can hook into the indexing lifecycle:
+
+.. code-block:: python
+
+    from django.dispatch import receiver
+    from delastic.signals import pre_index
+
+    @receiver(pre_index)
+    def pre_index_handler(sender, instance, **kwargs):
+        ...
+
+
+Example project
+---------------
+
+A runnable demo lives in ``example/`` (an RSS-feed reader that indexes
+articles). From a source checkout:
+
+.. code-block:: bash
+
+    cd example
+    python manage.py migrate
+    python manage.py get_articles
+    python manage.py create_elastic_index
+    python manage.py runserver
+
+
+Development
+-----------
+
+.. code-block:: bash
+
+    pip install -e . --group dev
+    pytest            # Elasticsearch is mocked; no cluster needed
+    ruff check . && ruff format --check .
+    mypy
+
+
+Roadmap
+-------
+
+* Search view (``delastic/views.py`` is an intentional placeholder):
+  Elasticsearch-based pagination, ``elasticsearch.dsl`` queries, and search
+  filters in the template context
+* Implement ``create_elastic_mapping`` (currently a no-op stub)
+* Support multiple models per index
+
+
+License
+-------
+
+MIT -- see ``LICENSE``.
